@@ -12,12 +12,14 @@ import {logger} from '@react-native-community/cli-tools';
 import adb from './adb';
 import tryRunAdbReverse from './tryRunAdbReverse';
 import tryLaunchAppOnDevice from './tryLaunchAppOnDevice';
+import findEmulators from './findEmulators';
+import launchEmulator from './launchEmulator';
 
 function getCommand(appFolder, command) {
   return appFolder ? `${appFolder}:${command}` : command;
 }
 
-function runOnAllDevices(
+async function runOnAllDevices(
   args: Object,
   cmd: string,
   packageNameWithSuffix: string,
@@ -69,7 +71,19 @@ function runOnAllDevices(
     // `logger.info(e.stderr)`
     return Promise.reject(e);
   }
-  const devices = adb.getDevices(adbPath);
+
+  let devices = adb.getDevices(adbPath);
+
+  if (!devices || !devices.length) {
+    const emulators = await findEmulators();
+
+    if (emulators.length) {
+      await launchEmulator(emulators[0]);
+
+      devices = adb.getDevices(adbPath);
+    }
+  }
+
   if (devices && devices.length > 0) {
     devices.forEach(device => {
       tryRunAdbReverse(args.port, device);
